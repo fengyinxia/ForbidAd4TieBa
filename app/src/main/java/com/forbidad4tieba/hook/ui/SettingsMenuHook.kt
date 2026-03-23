@@ -50,6 +50,18 @@ object SettingsMenuHook {
         val supported: Boolean,
     )
 
+    private fun resolveSwitchChecked(prefs: SharedPreferences, prefKey: String): Boolean {
+        return when (prefKey) {
+            "purify_enter_forum_page" -> when {
+                prefs.contains("purify_enter_forum_page") -> prefs.getBoolean("purify_enter_forum_page", true)
+                prefs.contains("block_my_forum") -> prefs.getBoolean("block_my_forum", true)
+                prefs.contains("filter_enter_forum_web") -> prefs.getBoolean("filter_enter_forum_web", true)
+                else -> true
+            }
+            else -> prefs.getBoolean(prefKey, true)
+        }
+    }
+
     fun hook(cl: ClassLoader, symbols: HookSymbols) {
         val settingsClass = symbols.settingsClass ?: return
         val settingsInitMethod = symbols.settingsInitMethod ?: return
@@ -93,8 +105,8 @@ object SettingsMenuHook {
                 SwitchItem("屏蔽直播内容", "block_live", true),
                 SwitchItem("屏蔽首页Tab (仅保留推荐)", "simplify_home_tabs", isHomeTabSupported()),
                 SwitchItem("屏蔽小卖部Tab", "simplify_bottom_tabs", true),
-                SwitchItem("屏蔽推荐进吧卡片", "block_my_forum", true),
-                SwitchItem("精简进吧页面", "filter_enter_forum_web", true),
+                SwitchItem("个人页面净化", "purify_my_page", true),
+                SwitchItem("进吧页面净化", "purify_enter_forum_page", true),
             )
 
             val hint = supportHint()
@@ -162,11 +174,16 @@ object SettingsMenuHook {
 
         @Suppress("DEPRECATION")
         val sw = Switch(context).apply {
-            isChecked = if (supported) prefs.getBoolean(prefKey, true) else false
+            isChecked = if (supported) resolveSwitchChecked(prefs, prefKey) else false
             isEnabled = supported
             setOnCheckedChangeListener { _, isChecked ->
                 if (supported) {
-                    prefs.edit().putBoolean(prefKey, isChecked).apply()
+                    val editor = prefs.edit().putBoolean(prefKey, isChecked)
+                    if (prefKey == "purify_enter_forum_page") {
+                        editor.putBoolean("block_my_forum", isChecked)
+                        editor.putBoolean("filter_enter_forum_web", isChecked)
+                    }
+                    editor.apply()
                 }
             }
         }

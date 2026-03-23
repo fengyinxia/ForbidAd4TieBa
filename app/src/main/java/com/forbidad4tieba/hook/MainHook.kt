@@ -12,6 +12,7 @@ import com.forbidad4tieba.hook.feature.ad.PostAdHook
 import com.forbidad4tieba.hook.feature.ad.StrategyAdHook
 import com.forbidad4tieba.hook.feature.ui.BottomTabHook
 import com.forbidad4tieba.hook.feature.ui.HomeTabHook
+import com.forbidad4tieba.hook.feature.ui.MyPageHooks
 import com.forbidad4tieba.hook.feature.web.EnterForumWebHook
 import com.forbidad4tieba.hook.ui.SettingsMenuHook
 
@@ -72,6 +73,7 @@ class MainHook : IXposedHookLoadPackage {
         PostAdHook.hook(cl, adClasses)
 
         BottomTabHook.hook(cl)
+        MyPageHooks.hook(cl)
         EnterForumWebHook.hook()
     }
 
