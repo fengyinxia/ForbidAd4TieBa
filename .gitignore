@@ -18,3 +18,11 @@
 /APP_RELEASE_UPGRADE_CHECKLIST.md
 /app-release.apk
 /jadx-1.5.5/
+/analysis/
+/tieba.apk
+.classpath
+.project
+.settings/
+*.jks
+*.keystore
+*.base64

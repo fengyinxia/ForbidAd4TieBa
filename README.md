@@ -27,6 +27,25 @@
   - **长按设置图标** 打开模块设置
   - 点击 **手动反混淆**
 
+## 自动发布 Release
+- 仓库已配置 GitHub Actions 自动发布 Release
+- 触发方式：推送形如 `v*` 的 Git tag
+- 例如：
+  - `git tag v26031902`
+  - `git push origin v26031902`
+- 工作流会自动：
+  - 执行 `assembleRelease`
+  - 从 `CHANGELOG.md` 提取当前 tag 对应的更新日志
+  - 创建 GitHub Release
+  - 上传 APK 附件：`ForbidAd4TieBa-<tag>.apk`
+- 当前 workflow 支持通过 GitHub Secrets 自动签名 release APK
+- 需要预先配置以下 Secrets：
+  - `RELEASE_KEYSTORE_BASE64`
+  - `RELEASE_KEYSTORE_PASSWORD`
+  - `RELEASE_KEY_ALIAS`
+  - `RELEASE_KEY_PASSWORD`
+- 发布前请先在 `CHANGELOG.md` 中添加对应版本章节，例如：`## v26031902`
+
 ## 当前可配置项
 - 屏蔽广告
 - 屏蔽直播内容

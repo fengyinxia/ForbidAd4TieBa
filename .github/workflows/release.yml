@@ -1,0 +1,89 @@
+name: Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
+
+      - name: Decode release keystore
+        run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > release-keystore.jks
+
+      - name: Build signed release APK
+        env:
+          RELEASE_KEYSTORE_FILE: ${{ github.workspace }}/release-keystore.jks
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
+
+      - name: Rename APK artifact
+        run: |
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/ForbidAd4TieBa-${GITHUB_REF_NAME}.apk
+          else
+            cp app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/ForbidAd4TieBa-${GITHUB_REF_NAME}.apk
+          fi
+
+      - name: Generate release notes from CHANGELOG
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+
+          tag = os.environ["TAG_NAME"].strip()
+          changelog = pathlib.Path("CHANGELOG.md")
+          text = changelog.read_text(encoding="utf-8") if changelog.exists() else ""
+          lines = text.splitlines()
+          target = f"## {tag}"
+          capture = False
+          result = []
+
+          for line in lines:
+              if line.startswith("## "):
+                  if capture:
+                      break
+                  if line.strip() == target:
+                      capture = True
+                      continue
+              if capture:
+                  result.append(line)
+
+          notes = "\n".join(result).strip()
+          if not notes:
+              notes = f"- Release {tag}"
+
+          pathlib.Path("RELEASE_NOTES.md").write_text(notes + "\n", encoding="utf-8")
+          PY
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          files: |
+            app/build/outputs/apk/release/ForbidAd4TieBa-${{ github.ref_name }}.apk
