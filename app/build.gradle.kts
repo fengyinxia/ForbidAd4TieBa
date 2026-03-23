@@ -25,8 +25,8 @@ android {
         applicationId = "com.forbidad4tieba.hook"
         minSdk = 24
         targetSdk = 36
-        versionCode = 6
-        versionName = "26031902"
+        versionCode = 7
+        versionName = "26031904"
         androidResources.localeFilters.add("zh")
     }
 
