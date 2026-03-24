@@ -103,7 +103,7 @@ object SettingsMenuHook {
             val switches = listOf(
                 SwitchItem("屏蔽广告", "block_ad", true),
                 SwitchItem("屏蔽直播内容", "block_live", true),
-                SwitchItem("屏蔽首页Tab (仅保留推荐)", "simplify_home_tabs", isHomeTabSupported()),
+                SwitchItem("首页顶栏净化", "simplify_home_tabs", isHomeTabSupported()),
                 SwitchItem("屏蔽小卖部Tab", "simplify_bottom_tabs", true),
                 SwitchItem("个人页面净化", "purify_my_page", true),
                 SwitchItem("进吧页面净化", "purify_enter_forum_page", true),

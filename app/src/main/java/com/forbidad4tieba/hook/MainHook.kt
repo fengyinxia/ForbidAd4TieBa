@@ -11,6 +11,7 @@ import com.forbidad4tieba.hook.feature.ad.FeedAdHook
 import com.forbidad4tieba.hook.feature.ad.PostAdHook
 import com.forbidad4tieba.hook.feature.ad.StrategyAdHook
 import com.forbidad4tieba.hook.feature.ui.BottomTabHook
+import com.forbidad4tieba.hook.feature.ui.DefaultMainTabHook
 import com.forbidad4tieba.hook.feature.ui.HomeTabHook
 import com.forbidad4tieba.hook.feature.ui.MyPageHooks
 import com.forbidad4tieba.hook.feature.web.EnterForumWebHook
@@ -72,6 +73,7 @@ class MainHook : IXposedHookLoadPackage {
         FeedAdHook.hook(cl, adClasses)
         PostAdHook.hook(cl, adClasses)
 
+        DefaultMainTabHook.hook(cl)
         BottomTabHook.hook(cl)
         MyPageHooks.hook(cl)
         EnterForumWebHook.hook()

@@ -1,97 +1,141 @@
 package com.forbidad4tieba.hook.feature.ui
 
+import android.view.View
 import com.forbidad4tieba.hook.HookSymbols
 import com.forbidad4tieba.hook.config.ConfigManager
 import com.forbidad4tieba.hook.core.Constants.TAG
+import com.forbidad4tieba.hook.utils.squashView
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
-import java.lang.reflect.Field
-import java.util.concurrent.ConcurrentHashMap
 
 object HomeTabHook {
-    private val listFieldCache = ConcurrentHashMap<Class<*>, Field>()
-    private val typeFieldCache = ConcurrentHashMap<Class<*>, Field>()
-
     fun hook(cl: ClassLoader, symbols: HookSymbols) {
-        val homeClass = symbols.homeTabClass ?: return
-        val rebuildMethod = symbols.homeTabRebuildMethod ?: return
-        val listField = symbols.homeTabListField ?: return
+        hookHomeTopBar(cl)
+        hookHomeSearchBar(cl)
+        hookHomePagerScrollable(cl)
+
+        // 保留 symbols 参数和设置页支持判断链路，不再沿旧的“仅保留推荐”逻辑处理 tab 列表
+        if (symbols.homeTabClass == null && symbols.homeTabRebuildMethod == null && symbols.homeTabListField == null) {
+            return
+        }
+    }
+
+    private fun hookHomeTopBar(cl: ClassLoader) {
         try {
-            XposedHelpers.findAndHookMethod(homeClass, cl, rebuildMethod, object : XC_MethodHook() {
+            val clazz = XposedHelpers.findClassIfExists(
+                "com.baidu.tieba.homepage.framework.indicator.ScrollTabBarLayout", cl
+            ) ?: return
+
+            val hideChildrenHook = object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {
                     if (!ConfigManager.isHomeTabSimplifyEnabled) return
-                    val list = resolveMutableListField(param.thisObject, listField) ?: return
-                    val it = list.iterator()
-                    while (it.hasNext()) {
-                        val pm6 = it.next()
-                        if (pm6 != null) {
-                            val type = readItemType(pm6)
-                            if (type != 0 && type != 1) it.remove()
+                    try {
+                        val host = param.thisObject ?: return
+                        val leftSlot = XposedHelpers.getObjectField(host, "d") as? View
+                        val rightSlot = XposedHelpers.getObjectField(host, "e") as? View
+                        val tabBarView = XposedHelpers.getObjectField(host, "c") as? View
+                        leftSlot?.let(::squashView)
+                        rightSlot?.let(::squashView)
+                        tabBarView?.let(::squashView)
+                        preserveStatusBarInset(host)
+                    } catch (_: Throwable) {
+                    }
+                }
+            }
+
+            XposedBridge.hookAllConstructors(clazz, hideChildrenHook)
+        } catch (_: Throwable) {
+        }
+    }
+
+    private fun preserveStatusBarInset(host: Any) {
+        val hostView = host as? View ?: return
+        val statusBarHeight = resolveStatusBarHeight(hostView)
+        if (statusBarHeight <= 0) return
+
+        try {
+            hostView.minimumHeight = statusBarHeight
+            hostView.layoutParams?.let {
+                it.height = statusBarHeight
+                hostView.layoutParams = it
+            }
+        } catch (_: Throwable) {
+        }
+
+        try {
+            val rootContainer = XposedHelpers.getObjectField(host, "a") as? View ?: return
+            rootContainer.minimumHeight = statusBarHeight
+            rootContainer.layoutParams?.let {
+                it.height = statusBarHeight
+                rootContainer.layoutParams = it
+            }
+        } catch (_: Throwable) {
+        }
+    }
+
+    private fun resolveStatusBarHeight(view: View): Int {
+        return try {
+            val resId = view.resources.getIdentifier("status_bar_height", "dimen", "android")
+            if (resId != 0) view.resources.getDimensionPixelSize(resId) else 0
+        } catch (_: Throwable) {
+            0
+        }
+    }
+
+    private fun hookHomeSearchBar(cl: ClassLoader) {
+        try {
+            val clazz = XposedHelpers.findClassIfExists(
+                "com.baidu.tieba.homepage.personalize.PersonalizeHeaderViewController", cl
+            ) ?: return
+
+            val squashHook = object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    if (!ConfigManager.isHomeTabSimplifyEnabled) return
+                    try {
+                        val container = XposedHelpers.getObjectField(param.thisObject, "d") as? View
+                        if (container != null) {
+                            squashView(container)
+                            return
                         }
+                        val searchBox = XposedHelpers.getObjectField(param.thisObject, "c") as? View
+                        if (searchBox != null) {
+                            squashView(searchBox)
+                        }
+                    } catch (_: Throwable) {
+                    }
+                }
+            }
+
+            XposedBridge.hookAllConstructors(clazz, squashHook)
+            XposedBridge.hookAllMethods(clazz, "k", object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    if (!ConfigManager.isHomeTabSimplifyEnabled) return
+                    squashView(param.result as? View ?: return)
+                }
+            })
+            XposedBridge.hookAllMethods(clazz, "j", squashHook)
+        } catch (_: Throwable) {
+        }
+    }
+
+    private fun hookHomePagerScrollable(cl: ClassLoader) {
+        try {
+            val clazz = XposedHelpers.findClassIfExists(
+                "com.baidu.tieba.homepage.framework.indicator.ScrollFragmentTabHost", cl
+            ) ?: return
+
+            XposedHelpers.findAndHookMethod(clazz, "f0", object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    if (!ConfigManager.isHomeTabSimplifyEnabled) return
+                    try {
+                        val pager = XposedHelpers.getObjectField(param.thisObject, "k") ?: return
+                        XposedHelpers.callMethod(pager, "setScrollable", false)
+                    } catch (_: Throwable) {
                     }
                 }
             })
-        } catch (t: Throwable) {
-            XposedBridge.log("$TAG: Failed to hook home tabs($homeClass.$rebuildMethod): ${t.message}")
-        }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun resolveMutableListField(target: Any?, preferredFieldName: String): MutableList<Any?>? {
-        if (target == null) return null
-        val clazz = target.javaClass
-        listFieldCache[clazz]?.let {
-            return try {
-                it.get(target) as? MutableList<Any?>
-            } catch (_: Throwable) {
-                null
-            }
-        }
-
-        try {
-            val directField = clazz.getDeclaredField(preferredFieldName)
-            directField.isAccessible = true
-            listFieldCache[clazz] = directField
-            return directField.get(target) as? MutableList<Any?>
         } catch (_: Throwable) {
-        }
-
-        val fallback = clazz.declaredFields.firstOrNull { List::class.java.isAssignableFrom(it.type) } ?: return null
-        return try {
-            fallback.isAccessible = true
-            listFieldCache[clazz] = fallback
-            fallback.get(target) as? MutableList<Any?>
-        } catch (_: Throwable) {
-            null
-        }
-    }
-
-    private fun readItemType(item: Any): Int {
-        val clazz = item.javaClass
-        typeFieldCache[clazz]?.let {
-            return try {
-                it.getInt(item)
-            } catch (_: Throwable) {
-                -1
-            }
-        }
-
-        try {
-            val directField = clazz.getDeclaredField("a")
-            directField.isAccessible = true
-            typeFieldCache[clazz] = directField
-            return directField.getInt(item)
-        } catch (_: Throwable) {
-        }
-
-        val fallback = clazz.declaredFields.firstOrNull { it.type == Int::class.javaPrimitiveType } ?: return -1
-        return try {
-            fallback.isAccessible = true
-            typeFieldCache[clazz] = fallback
-            fallback.getInt(item)
-        } catch (_: Throwable) {
-            -1
         }
     }
 }
