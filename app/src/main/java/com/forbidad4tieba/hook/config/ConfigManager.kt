@@ -7,6 +7,7 @@ object ConfigManager {
     private const val PREFS_NAME = "tiebahook_settings"
     private const val KEY_BLOCK_AD = "block_ad"
     private const val KEY_BLOCK_LIVE = "block_live"
+    private const val KEY_DISABLE_UPDATE = "disable_update"
     private const val KEY_BLOCK_MY_FORUM = "block_my_forum"
     private const val KEY_SIMPLIFY_HOME_TABS = "simplify_home_tabs"
     private const val KEY_SIMPLIFY_BOTTOM_TABS = "simplify_bottom_tabs"
@@ -21,6 +22,8 @@ object ConfigManager {
     private var blockAdEnabled: Boolean = true
     @Volatile
     private var blockLiveEnabled: Boolean = true
+    @Volatile
+    private var disableUpdateEnabled: Boolean = true
     @Volatile
     private var blockMyForumEnabled: Boolean = true
     @Volatile
@@ -58,6 +61,7 @@ object ConfigManager {
     private fun syncAll(prefs: SharedPreferences) {
         blockAdEnabled = prefs.getBoolean(KEY_BLOCK_AD, true)
         blockLiveEnabled = prefs.getBoolean(KEY_BLOCK_LIVE, true)
+        disableUpdateEnabled = prefs.getBoolean(KEY_DISABLE_UPDATE, true)
         blockMyForumEnabled = readPurifyEnterForumPage(prefs)
         simplifyHomeTabsEnabled = prefs.getBoolean(KEY_SIMPLIFY_HOME_TABS, true)
         simplifyBottomTabsEnabled = prefs.getBoolean(KEY_SIMPLIFY_BOTTOM_TABS, true)
@@ -70,6 +74,7 @@ object ConfigManager {
             null -> syncAll(prefs)
             KEY_BLOCK_AD -> blockAdEnabled = prefs.getBoolean(KEY_BLOCK_AD, true)
             KEY_BLOCK_LIVE -> blockLiveEnabled = prefs.getBoolean(KEY_BLOCK_LIVE, true)
+            KEY_DISABLE_UPDATE -> disableUpdateEnabled = prefs.getBoolean(KEY_DISABLE_UPDATE, true)
             KEY_BLOCK_MY_FORUM,
             KEY_FILTER_ENTER_FORUM_WEB,
             KEY_PURIFY_ENTER_FORUM_PAGE -> {
@@ -94,6 +99,7 @@ object ConfigManager {
 
     val isAdBlockEnabled: Boolean get() = blockAdEnabled
     val isLiveBlockEnabled: Boolean get() = blockLiveEnabled
+    val isUpdateDisabled: Boolean get() = disableUpdateEnabled
     val isMyForumBlockEnabled: Boolean get() = blockMyForumEnabled
     val isHomeTabSimplifyEnabled: Boolean get() = simplifyHomeTabsEnabled
     val isBottomTabSimplifyEnabled: Boolean get() = simplifyBottomTabsEnabled

@@ -103,6 +103,7 @@ object SettingsMenuHook {
             val switches = listOf(
                 SwitchItem("屏蔽广告", "block_ad", true),
                 SwitchItem("屏蔽直播内容", "block_live", true),
+                SwitchItem("禁用软件更新", "disable_update", true),
                 SwitchItem("首页顶栏净化", "simplify_home_tabs", isHomeTabSupported()),
                 SwitchItem("屏蔽小卖部Tab", "simplify_bottom_tabs", true),
                 SwitchItem("个人页面净化", "purify_my_page", true),
@@ -121,11 +122,6 @@ object SettingsMenuHook {
                 val label = if (item.supported) item.label else "${item.label} (当前版本不支持)"
                 root.addView(createSwitchRow(context, prefs, label, item.prefKey, padding, item.supported))
             }
-
-            root.addView(createDivider(context, padding))
-            root.addView(createActionRow(context, "手动反混淆", padding) {
-                startSymbolScanWithDialog(context, context.classLoader)
-            })
 
             val builder = AlertDialog.Builder(
                 context, android.R.style.Theme_DeviceDefault_Light_Dialog_Alert
@@ -323,7 +319,7 @@ object SettingsMenuHook {
 
         val cancelButton = Button(activity).apply { text = "取消" }
         val copyButton = Button(activity).apply { text = "复制日志" }
-        val restartButton = Button(activity).apply { text = "重启" }
+        val restartButton = Button(activity).apply { text = "结束宿主" }
 
         styleScanActionButton(cancelButton, density, 0xFF2C3E50.toInt())
         styleScanActionButton(copyButton, density, 0xFF1976D2.toInt())
@@ -359,7 +355,7 @@ object SettingsMenuHook {
         }
         restartButton.setOnClickListener {
             if (scanFinished) {
-                appendScanLog(handler, logs, logView, scrollView, "Restart requested")
+                appendScanLog(handler, logs, logView, scrollView, "Kill requested")
                 restartHostApp(activity)
             }
         }
@@ -398,10 +394,15 @@ object SettingsMenuHook {
                 val completed = when (scanSource) {
                     "scan" -> "Scan completed"
                     "partial" -> "Scan partially completed"
+                    "builtin" -> "Builtin symbols usable"
                     else -> "Scan failed"
                 }
                 appendScanLog(handler, logs, logView, scrollView, completed)
                 updateButtonEnabledState(restartButton, scanSource != "unsupported")
+                if (scanSource != "unsupported") {
+                    appendScanLog(handler, logs, logView, scrollView, "Auto kill requested")
+                    restartHostApp(activity)
+                }
             }
         }.start()
     }
@@ -440,15 +441,6 @@ object SettingsMenuHook {
     }
 
     private fun restartHostApp(activity: Activity) {
-        try {
-            val launchIntent = activity.packageManager.getLaunchIntentForPackage(activity.packageName)
-            if (launchIntent != null) {
-                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                activity.startActivity(launchIntent)
-            }
-        } catch (t: Throwable) {
-            XposedBridge.log("$TAG: restart launch failed: ${t.message}")
-        }
         try {
             activity.finishAffinity()
         } catch (_: Throwable) {

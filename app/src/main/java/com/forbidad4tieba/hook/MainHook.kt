@@ -12,6 +12,7 @@ import com.forbidad4tieba.hook.feature.ad.PostAdHook
 import com.forbidad4tieba.hook.feature.ad.StrategyAdHook
 import com.forbidad4tieba.hook.feature.ui.BottomTabHook
 import com.forbidad4tieba.hook.feature.ui.DefaultMainTabHook
+import com.forbidad4tieba.hook.feature.ui.DisableUpdateHook
 import com.forbidad4tieba.hook.feature.ui.HomeTabHook
 import com.forbidad4tieba.hook.feature.ui.MyPageHooks
 import com.forbidad4tieba.hook.feature.web.EnterForumWebHook
@@ -26,9 +27,6 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage
 class MainHook : IXposedHookLoadPackage {
     @Volatile
     private var appContext: Context? = null
-
-    @Volatile
-    private var symbolHooksInstalled: Boolean = false
 
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
         if (lpparam.packageName != TARGET_PACKAGE || lpparam.processName != TARGET_PACKAGE) return
@@ -45,7 +43,6 @@ class MainHook : IXposedHookLoadPackage {
                             logModuleVersion(application)
                         }
                         val context = appContext ?: return
-                        if (!markSymbolHooksInstalled()) return
                         try {
                             val symbols = HookSymbolResolver.loadCachedIfUsable(context, lpparam.classLoader)
                                 ?: HookSymbols(source = "unsupported")
@@ -73,6 +70,7 @@ class MainHook : IXposedHookLoadPackage {
         FeedAdHook.hook(cl, adClasses)
         PostAdHook.hook(cl, adClasses)
 
+        DisableUpdateHook.hook(cl)
         DefaultMainTabHook.hook(cl)
         BottomTabHook.hook(cl)
         MyPageHooks.hook(cl)
@@ -90,14 +88,6 @@ class MainHook : IXposedHookLoadPackage {
             if (c != null) list.add(c)
         }
         return list.toTypedArray()
-    }
-
-    private fun markSymbolHooksInstalled(): Boolean {
-        synchronized(this) {
-            if (symbolHooksInstalled) return false
-            symbolHooksInstalled = true
-            return true
-        }
     }
 
     private fun logModuleVersion(context: Context) {
